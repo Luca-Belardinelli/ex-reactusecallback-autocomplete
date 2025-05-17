@@ -1,4 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+
+const debounce = (callback, delay) => {
+  let timeout;
+  return (value) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      callback(value);
+    }, delay);
+  };
+}
 
 function App() {
   // State per memorizzare l'input di ricerca dell'utente
@@ -6,21 +16,34 @@ function App() {
 
   // State per memorizzare la lista dei prodotti dall'API
   const [search, setSearch] = useState([]);
-  console.log(search)
 
-  // Hook useEffect per recuperare i dati dei prodotti quando il componente viene montato
-  useEffect(() => {
+  const fetchProducts = async (query) => {
     // Se la query è vuota, resetta la lista dei risultati
     if (query.trim() === "") {
       setSearch([]);
       return;
     }
-    // Chiamata API per recuperare i dati dei prodotti dal server locale
-    fetch(`http://localhost:3333/products?search=${query}`)
-      .then(Response => Response.json())
-      .then(data => setSearch(data)) // Memorizza i dati ricevuti nello state search
-      .catch(error => console.error(error)) // Gestisce eventuali errori
-  }, [query]); // Esegue l'effetto ogni volta che query cambia
+    try {
+      const response = await fetch(`http://localhost:3333/products?search=${query}`);
+      const data = await response.json();
+      setSearch(data);
+      console.log("API")
+    } catch (error) {
+      console.error("Error :", error);
+    }
+  }
+
+
+  const debouncedFetchProducts = useCallback(
+    debounce(fetchProducts, 500),
+    []
+  );
+
+
+  // Hook useEffect per recuperare i dati dei prodotti quando il componente viene montato
+  useEffect(() => {
+    debouncedFetchProducts(query); // Chiama la funzione per recuperare i prodotti
+  }, [query]);
 
   return (
     <div>
@@ -34,21 +57,18 @@ function App() {
 
       {/* Contenitore per i suggerimenti di ricerca */}
       <div className="container">
-        {/* Elemento details espandibile per i suggerimenti */}
-        <details>
-          <summary>Suggerimenti</summary>
-          {/* Mostra la lista solo se ci sono risultati di ricerca */}
-          {search.length > 0 && (
-            <ul>
-              {/* Mappa attraverso i risultati della ricerca e crea un elemento lista per ogni prodotto */}
-              {search.map((i) => (
-                <li key={i.id}>{i.name}</li> // Usa l'id come key univoca per ogni elemento
-              ))}
-            </ul>
-          )}
-        </details>
+        <h1>Suggerimenti</h1>
+        {/* Mostra la lista solo se ci sono risultati di ricerca */}
+        {search.length > 0 && (
+          <ul>
+            {/* Mappa attraverso i risultati della ricerca e crea un elemento lista per ogni prodotto */}
+            {search.map((i) => (
+              <li key={i.id}>{i.name}</li> // Usa l'id come key univoca per ogni elemento
+            ))}
+          </ul>
+        )}
       </div>
-    </div>
+    </div >
   )
 }
 
